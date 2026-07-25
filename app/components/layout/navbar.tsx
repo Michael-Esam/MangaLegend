@@ -40,6 +40,14 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+            <a
+              href="https://www.effectivecpmnetwork.com/qja5szirup?key=476454f523be7777fe64674306aa450b"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold transition-colors text-amber-500 hover:text-amber-400"
+            >
+              Support Us
+            </a>
           </div>
 
           <div className="hidden md:flex items-center gap-4">
@@ -83,9 +91,19 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+            <a
+              href="https://www.effectivecpmnetwork.com/qja5szirup?key=476454f523be7777fe64674306aa450b"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-base font-semibold text-amber-500 hover:text-amber-400"
+            >
+              Support Us
+            </a>
           </div>
         </div>
       )}
+
     </nav>
   )
 }

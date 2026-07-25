@@ -6,6 +6,7 @@ import { ImageViewer } from '@/components/reader/image-viewer'
 import { ReaderControls } from '@/components/reader/reader-controls'
 import { useChapterPages, useMangaChapters, useReadingProgress } from '@/lib/hooks/useManga'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner'
 
 interface ChapterPageProps {
   params: { chapterId: string }
@@ -33,8 +34,9 @@ export default function ChapterPage({ params }: ChapterPageProps) {
   const currentIndex = useMemo(() => {
     if (!chapters) return -1
     const cleanCurrentId = chapterId.split('/')[0]
-    return chapters.findIndex(c => c.id.split('/')[0] === cleanCurrentId)
+    return chapters.findIndex((c: any) => c.id.split('/')[0] === cleanCurrentId)
   }, [chapters, chapterId])
+
 
   // Chapters are sorted newest first (descending order, e.g. ch 28, ch 27, ch 26...)
   const nextChapter = currentIndex > 0 && chapters ? chapters[currentIndex - 1] : null
@@ -95,6 +97,9 @@ export default function ChapterPage({ params }: ChapterPageProps) {
           readingMode={readingMode}
         />
       </div>
+
+      <AdsterraNativeBanner />
     </div>
   )
 }
+

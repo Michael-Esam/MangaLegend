@@ -7,6 +7,7 @@ import { MangaCard } from '@/components/manga/manga-card'
 import { MangaCardSkeleton } from '@/components/ui/skeleton'
 import { TrendingUp, Sparkles } from 'lucide-react'
 import type { Manga } from '@/types/manga'
+import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner'
 
 export default function HomePage() {
   const { data: trending, isLoading: trendingLoading } = useTrendingManga(12)
@@ -22,7 +23,7 @@ export default function HomePage() {
             Read Manga <span className="text-accent">Online</span>
           </h1>
           <p className="text-text-secondary text-lg max-w-2xl mx-auto mb-8">
-            Discover and read your favorite manga with a beautiful, ad-free experience.
+            Discover and read your favorite manga with a beautiful, modern experience.
           </p>
           <div className="max-w-xl mx-auto relative">
             <SearchBar />
@@ -55,8 +56,12 @@ export default function HomePage() {
           )}
         </section>
 
+        {/* Ad Banner */}
+        <AdsterraNativeBanner />
+
         {/* Popular Series */}
-        <section className="mb-12">
+        <section className="mb-12 cursor-pointer">
+
           <div className="flex items-center gap-2 mb-6">
             <Sparkles className="w-5 h-5 text-accent" />
             <h2 className="text-xl font-bold">Popular Series</h2>

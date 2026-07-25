@@ -10,6 +10,7 @@ import { MangaCardSkeleton } from '@/components/ui/skeleton'
 import { useManga, useMangaChapters, useTrendingManga } from '@/lib/hooks/useManga'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Manga } from '@/types/manga'
+import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner'
 
 interface MangaPageProps {
   params: { id: string }
@@ -59,7 +60,10 @@ export default function MangaPage({ params }: MangaPageProps) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <MangaHeader manga={manga} firstChapterId={firstChapterId} />
 
+        <AdsterraNativeBanner />
+
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
+
           <div>
             <h2 className="text-xl font-bold mb-4">Chapters</h2>
             {chaptersLoading ? (
