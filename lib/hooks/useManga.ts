@@ -22,10 +22,14 @@ interface ConsumetChapter {
   mangaId: string
 }
 
-function consumetToManga(consumet: ConsumetManga): Manga {
+function consumetToManga(consumet: any): Manga {
+  if (consumet && consumet.type === 'manga') {
+    return consumet as Manga
+  }
+
   // Normalize ID: Consumet often returns "2009/slug-title", keep only the numeric part
-  const cleanId = consumet.id.split('/')[0]
-  const coverImage = consumet.image || `https://cdn.readdetectiveconan.com/file/mangapill/i/${cleanId}.jpeg`
+  const cleanId = consumet.id ? consumet.id.split('/')[0] : ''
+  const coverImage = consumet.image || ''
 
   let year: number | null = null
   if (consumet.releaseDate) {
@@ -92,9 +96,10 @@ export function usePopularManga() {
       const res = await fetch('/api/popular')
       const data = await res.json()
       const results = Array.isArray(data) ? data : (data.results || [])
+      // MangaDex data already has type: 'manga', consumetToManga passes it through
       return results.map(consumetToManga)
     },
-    staleTime: 60 * 60 * 1000, // 1 hour — list is static
+    staleTime: 60 * 60 * 1000,
   })
 }
 

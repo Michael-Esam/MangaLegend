@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server'
-
-const CONSUMET_BASE_URL = 'https://consumet-api-rouge.vercel.app'
+import { fetchTrendingManga } from '@/lib/api'
 
 export async function GET() {
   try {
-    const res = await fetch(`${CONSUMET_BASE_URL}/manga/mangapill/popular`)
-    if (!res.ok) {
-      return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 })
+    const trendingData = await fetchTrendingManga(10)
+    
+    if (trendingData && trendingData.length > 0) {
+      return NextResponse.json(trendingData)
     }
-    const data = await res.json()
-    return NextResponse.json(data)
+    
+    return NextResponse.json([])
   } catch (error) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return NextResponse.json([])
   }
 }
+

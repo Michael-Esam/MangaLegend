@@ -51,7 +51,12 @@ export default function MangaPage({ params }: MangaPageProps) {
   }
 
   const relatedManga = trending?.filter((m: { id: string }) => m.id !== id).slice(0, 5) || []
-  const firstChapterId = chapters?.[0]?.id
+  
+  // Find Chapter 1 (or the first chapter numerically) for Start Reading button
+  const firstChapter = chapters?.find((ch: any) => ch.attributes?.chapter === '1' || ch.chapter === '1')
+                     || chapters?.[chapters.length - 1]
+                     || chapters?.[0]
+  const firstChapterId = firstChapter?.id
 
   return (
     <div className="min-h-screen bg-background">

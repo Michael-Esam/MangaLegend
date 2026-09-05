@@ -15,26 +15,35 @@ interface MangaHeaderProps {
   firstChapterId?: string
 }
 
+const FALLBACK_IMAGE = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><rect width="100%" height="100%" fill="%231a1a2e" /><text x="50%" y="50%" font-family="sans-serif" font-size="20" fill="%23a0a0b0" text-anchor="middle" dominant-baseline="middle">No Cover</text></svg>'
+
 export function MangaHeader({ manga, firstChapterId }: MangaHeaderProps) {
   const router = useRouter()
   const [isFavorited, setIsFavorited] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const coverRelation = manga.relationships.find(r => r.type === 'cover_art')
-  const authorRelation = manga.relationships.find(r => r.type === 'author')
-  const artistRelation = manga.relationships.find(r => r.type === 'artist')
+  const coverRelation = manga.relationships?.find(r => r.type === 'cover_art')
+  const authorRelation = manga.relationships?.find(r => r.type === 'author')
+  const artistRelation = manga.relationships?.find(r => r.type === 'artist')
 
-  const rawCoverUrl = coverRelation?.attributes?.fileName
-    ? buildCoverUrl(manga.id, coverRelation.id, coverRelation.attributes.fileName)
-    : '/placeholder-cover.png'
-  const coverUrl = rawCoverUrl.startsWith('http') ? `/api/image-proxy?url=${encodeURIComponent(rawCoverUrl)}` : rawCoverUrl
+  const fileName = (manga as any).image || coverRelation?.attributes?.fileName || ''
+  const rawCoverUrl = fileName
+    ? buildCoverUrl(manga.id, coverRelation?.id || manga.id, fileName)
+    : FALLBACK_IMAGE
+
+  const initialCoverUrl = rawCoverUrl.startsWith('http') ? `/api/image-proxy?url=${encodeURIComponent(rawCoverUrl)}` : rawCoverUrl
+  const [imgSrc, setImgSrc] = useState(initialCoverUrl)
+
+  useEffect(() => {
+    setImgSrc(initialCoverUrl)
+  }, [initialCoverUrl])
 
   const title = getTitle(manga)
   const description = getDescription(manga)
   const author = (authorRelation?.attributes as AuthorAttributes | undefined)?.name || 'Unknown'
   const artist = (artistRelation?.attributes as AuthorAttributes | undefined)?.name
-  const tags = manga.attributes.tags.filter(t => t.attributes.group === 'genre' || t.attributes.group === 'theme')
+  const tags = (manga.attributes?.tags || []).filter(t => t.attributes?.group === 'genre' || t.attributes?.group === 'theme')
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -87,7 +96,6 @@ export function MangaHeader({ manga, firstChapterId }: MangaHeaderProps) {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       } catch {
-        // Fallback
         prompt('Copy this link:', url)
       }
     }
@@ -96,8 +104,23 @@ export function MangaHeader({ manga, firstChapterId }: MangaHeaderProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8">
       <div className="mx-auto md:mx-0 w-48 md:w-full">
-        <div className="relative aspect-[3/4] rounded-xl overflow-hidden border-2 border-border">
-          <Image src={coverUrl} alt={title} fill className="object-cover" sizes="(max-width: 768px) 192px, 200px" priority unoptimized />
+        <div className="relative aspect-[3/4] rounded-xl overflow-hidden border-2 border-border bg-surface-hover flex items-center justify-center">
+          <Image
+            src={imgSrc}
+            alt={title}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 192px, 200px"
+            priority
+            unoptimized
+            onError={() => {
+              if (imgSrc.includes('/api/image-proxy')) {
+                setImgSrc(rawCoverUrl)
+              } else if (imgSrc !== FALLBACK_IMAGE) {
+                setImgSrc(FALLBACK_IMAGE)
+              }
+            }}
+          />
         </div>
       </div>
 
@@ -115,12 +138,12 @@ export function MangaHeader({ manga, firstChapterId }: MangaHeaderProps) {
         <div className="flex flex-wrap gap-2">
           <Badge variant="accent">
             <Star size={12} className="mr-1" />
-            {manga.attributes.rating?.toFixed(1) || 'N/A'}
+            {manga.attributes?.rating?.toFixed(1) || 'N/A'}
           </Badge>
           <Badge variant="default" className="capitalize">
-            {manga.attributes.status}
+            {manga.attributes?.status || 'ongoing'}
           </Badge>
-          {manga.attributes.year && (
+          {manga.attributes?.year && (
             <Badge variant="default">{manga.attributes.year}</Badge>
           )}
         </div>

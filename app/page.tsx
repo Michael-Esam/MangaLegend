@@ -10,8 +10,9 @@ import type { Manga } from '@/types/manga'
 import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner'
 
 export default function HomePage() {
-  const { data: trending, isLoading: trendingLoading } = useTrendingManga(12)
+  const { data: trending, isLoading: trendingLoading } = useTrendingManga(5)
   const { data: popular, isLoading: popularLoading } = usePopularManga()
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,13 +39,13 @@ export default function HomePage() {
           </div>
 
           {trendingLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
-              {Array.from({ length: 6 }).map((_, i) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6">
+              {Array.from({ length: 5 }).map((_, i) => (
                 <MangaCardSkeleton key={i} />
               ))}
             </div>
           ) : trending && trending.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6">
               {trending.map((manga: Manga) => (
                 <MangaCard key={manga.id} manga={manga} />
               ))}

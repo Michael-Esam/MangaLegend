@@ -104,11 +104,22 @@ export async function fetchSearchSuggestions(query: string): Promise<Manga[]> {
 }
 
 export function buildCoverUrl(mangaId: string, coverId: string, filename: string, size: 'small' | 'original' = 'original'): string {
-  // If filename is already a full URL (from another API like Jikan), use it directly
+  if (!filename) return ''
+  
   if (filename.startsWith('http://') || filename.startsWith('https://')) {
     return filename
   }
-  // Otherwise assume it's a MangaDex cover filename
+  if (filename.startsWith('//')) {
+    return `https:${filename}`
+  }
+  if (filename.includes('/')) {
+    if (filename.startsWith('/')) {
+      return filename
+    }
+    return `https://${filename}`
+  }
+  
   const suffix = size === 'small' ? 'data-s' : 'data'
   return `https://uploads.mangadex.org/covers/${mangaId}/${filename}`
 }
+
