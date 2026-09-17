@@ -20,15 +20,14 @@ export default function RootLayout({
           {children}
         </Providers>
         <Script 
-          src="https://pl30532559.effectivecpmnetwork.com/39/6d/0a/396d0a2f34b89d5afb5a1afc0b6cd60f.js" 
+          src="https://pl31373517.profitableratecpmnetwork.com/75/ee/af/75eeaf17e3fa086c19fc09f5d5a61caf.js" 
           strategy="lazyOnload" 
         />
         <Script 
-          src="https://pl30532560.effectivecpmnetwork.com/06/62/a5/0662a53ff7dc0f39617df90a3b54ae2f.js" 
+          src="https://pl31373519.profitableratecpmnetwork.com/00/1e/1c/001e1cc6699a20e1f590afaebcb60183.js" 
           strategy="lazyOnload" 
         />
       </body>
     </html>
   )
 }
-

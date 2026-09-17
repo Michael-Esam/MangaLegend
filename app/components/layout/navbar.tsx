@@ -41,7 +41,7 @@ export function Navbar() {
               </Link>
             ))}
             <a
-              href="https://www.effectivecpmnetwork.com/qja5szirup?key=476454f523be7777fe64674306aa450b"
+              href="https://www.profitableratecpmnetwork.com/v85n5nkfby?key=13bf0eea5363479a5a34dce09be70f40"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-semibold transition-colors text-amber-500 hover:text-amber-400"
@@ -92,7 +92,7 @@ export function Navbar() {
               </Link>
             ))}
             <a
-              href="https://www.effectivecpmnetwork.com/qja5szirup?key=476454f523be7777fe64674306aa450b"
+              href="https://www.profitableratecpmnetwork.com/v85n5nkfby?key=13bf0eea5363479a5a34dce09be70f40"
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setMobileMenuOpen(false)}
