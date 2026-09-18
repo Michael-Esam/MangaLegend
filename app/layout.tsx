@@ -16,6 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
+      <meta name="google-site-verification" content="zGP3Ct0SKInYtQcJWy5VeBhhoEiK7SYwZaEBVIyra_Y" />
       <body className="bg-background text-text-primary antialiased">
         <Providers>
           {children}
