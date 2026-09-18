@@ -8,6 +8,7 @@ import { MangaCardSkeleton } from '@/components/ui/skeleton'
 import { TrendingUp, Sparkles } from 'lucide-react'
 import type { Manga } from '@/types/manga'
 import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner'
+import { Analytics } from '@vercel/analytics/react';
 
 export default function HomePage() {
   const { data: trending, isLoading: trendingLoading } = useTrendingManga(5)
@@ -87,6 +88,7 @@ export default function HomePage() {
           )}
         </section>
       </main>
+      <Analytics />
     </div>
   )
 }
