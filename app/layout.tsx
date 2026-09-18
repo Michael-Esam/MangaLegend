@@ -7,6 +7,9 @@ import Script from 'next/script'
 export const metadata: Metadata = {
   title: 'Manga Legends',
   description: 'Read manga online with Manga Legends',
+  verification: {
+    google: 'zGP3Ct0SKInYtQcJWy5VeBhhoEiK7SYwZaEBVIyra_Y',
+  },
 }
 
 export default function RootLayout({
@@ -28,8 +31,8 @@ export default function RootLayout({
           src="https://pl31373519.profitableratecpmnetwork.com/00/1e/1c/001e1cc6699a20e1f590afaebcb60183.js"
           strategy="lazyOnload"
         />
-        <Analytics />
       </body>
+      <Analytics />
     </html>
   )
 }
