@@ -16,7 +16,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <meta name="google-site-verification" content="zGP3Ct0SKInYtQcJWy5VeBhhoEiK7SYwZaEBVIyra_Y" />
       <body className="bg-background text-text-primary antialiased">
         <Providers>
           {children}
@@ -29,8 +28,8 @@ export default function RootLayout({
           src="https://pl31373519.profitableratecpmnetwork.com/00/1e/1c/001e1cc6699a20e1f590afaebcb60183.js"
           strategy="lazyOnload"
         />
+        <Analytics />
       </body>
-      <Analytics />
     </html>
   )
 }
