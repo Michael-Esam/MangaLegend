@@ -7,7 +7,8 @@ import { ChapterList } from '@/components/manga/chapter-list'
 import { MangaCard } from '@/components/manga/manga-card'
 import { useManga, useMangaChapters, useTrendingManga } from '@/lib/hooks/useManga'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { Manga } from '@/types/manga'
+import type { Manga, AuthorAttributes } from '@/types/manga'
+import { getTitle, getDescription } from '@/lib/utils'
 import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner'
 
 interface MangaDetailContentProps {
@@ -47,6 +48,20 @@ export function MangaDetailContent({ id }: MangaDetailContentProps) {
     notFound()
   }
 
+  const title = getTitle(manga)
+  const description = getDescription(manga)
+  const authorRelation = manga.relationships?.find(r => r.type === 'author')
+  const artistRelation = manga.relationships?.find(r => r.type === 'artist')
+  const rawAuthor = (authorRelation?.attributes as AuthorAttributes | undefined)?.name
+  const rawArtist = (artistRelation?.attributes as AuthorAttributes | undefined)?.name
+  const author = rawAuthor && rawAuthor !== 'Unknown' ? rawAuthor : undefined
+  const artist = rawArtist && rawArtist !== 'Unknown' ? rawArtist : undefined
+  const genreTags = (manga.attributes?.tags || []).filter(t => t.attributes?.group === 'genre' || t.attributes?.group === 'theme')
+  const genresList = genreTags.map(t => Object.values(t.attributes?.name || {})[0]).filter(Boolean)
+  const genres = genresList.length > 0 ? genresList.join(', ') : undefined
+  const status = manga.attributes?.status
+  const chapterCount = chapters?.length
+
   const relatedManga = trending?.filter((m: { id: string }) => m.id !== id).slice(0, 5) || []
 
   // Find Chapter 1 (or the first chapter numerically) for Start Reading button
@@ -65,9 +80,50 @@ export function MangaDetailContent({ id }: MangaDetailContentProps) {
 
         <AdsterraNativeBanner />
 
+        <div className="mt-8 p-6 bg-surface rounded-xl border border-border space-y-4">
+          <h2 className="text-2xl font-bold tracking-tight">{title} Manga</h2>
+          
+          {description && description !== 'No description available' && (
+            <p className="text-text-secondary leading-relaxed">{description}</p>
+          )}
+
+          <div className="flex flex-wrap gap-y-2 gap-x-6 text-sm border-t border-border pt-4 text-text-secondary">
+            {author && (
+              <div>
+                <span className="font-semibold text-text-primary">Author: </span>
+                {author}
+              </div>
+            )}
+            {artist && (
+              <div>
+                <span className="font-semibold text-text-primary">Artist: </span>
+                {artist}
+              </div>
+            )}
+            {genres && (
+              <div>
+                <span className="font-semibold text-text-primary">Genres: </span>
+                {genres}
+              </div>
+            )}
+            {status && (
+              <div>
+                <span className="font-semibold text-text-primary">Status: </span>
+                <span className="capitalize">{status}</span>
+              </div>
+            )}
+            {typeof chapterCount === 'number' && chapterCount > 0 && (
+              <div>
+                <span className="font-semibold text-text-primary">Chapters: </span>
+                {chapterCount}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
           <div>
-            <h2 className="text-xl font-bold mb-4">Chapters</h2>
+            <h2 className="text-xl font-bold mb-4">{title} Chapters</h2>
             {chaptersLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 5 }).map((_, i) => (
