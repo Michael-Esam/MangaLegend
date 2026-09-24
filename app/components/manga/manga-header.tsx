@@ -107,7 +107,7 @@ export function MangaHeader({ manga, firstChapterId }: MangaHeaderProps) {
         <div className="relative aspect-[3/4] rounded-xl overflow-hidden border-2 border-border bg-surface-hover flex items-center justify-center">
           <Image
             src={imgSrc}
-            alt={title}
+            alt={`${title} Manga Cover`}
             fill
             className="object-cover"
             sizes="(max-width: 768px) 192px, 200px"

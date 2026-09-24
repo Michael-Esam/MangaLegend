@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
+import { SITE_CONFIG } from '@/lib/seo'
 
-const BASE_URL = 'https://mangalegends.de5.net'
+const BASE_URL = SITE_CONFIG.url
 
 // Verified famous manga IDs from existing app definitions
 const FAMOUS_MANGA_IDS = [
@@ -66,12 +67,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: `${BASE_URL}/search`,
-      lastModified: currentDate,
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/library`,
       lastModified: currentDate,
       changeFrequency: 'weekly',
       priority: 0.8,

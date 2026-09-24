@@ -1,97 +1,124 @@
-'use client'
-
-import { notFound } from 'next/navigation'
-import Image from 'next/image'
-import { Navbar } from '@/components/layout/navbar'
-import { MangaHeader } from '@/components/manga/manga-header'
-import { ChapterList } from '@/components/manga/chapter-list'
-import { MangaCard } from '@/components/manga/manga-card'
-import { MangaCardSkeleton } from '@/components/ui/skeleton'
-import { useManga, useMangaChapters, useTrendingManga } from '@/lib/hooks/useManga'
-import { Skeleton } from '@/components/ui/skeleton'
-import type { Manga } from '@/types/manga'
-import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner'
+import type { Metadata } from 'next'
+import { MangaDetailContent } from '@/components/manga/manga-detail-content'
+import { SITE_CONFIG, generateBreadcrumbJsonLd, generateWebPageJsonLd } from '@/lib/seo'
 
 interface MangaPageProps {
   params: { id: string }
 }
 
-export default function MangaPage({ params }: MangaPageProps) {
-  const { id } = params
-  const { data: manga, isLoading: mangaLoading } = useManga(id)
-  const { data: chapters, isLoading: chaptersLoading } = useMangaChapters(id)
-  const { data: trending } = useTrendingManga(6)
+async function getMangaInfo(rawId: string) {
+  const cleanId = rawId.split('/')[0]
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId)
 
-  if (mangaLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8">
-            <div>
-              <Skeleton className="w-48 md:w-56 aspect-[3/4]" />
-            </div>
-            <div className="space-y-4">
-              <Skeleton className="h-10 w-3/4" />
-              <Skeleton className="h-6 w-1/2" />
-              <Skeleton className="h-24 w-full" />
-              <div className="flex gap-3">
-                <Skeleton className="h-12 w-32" />
-                <Skeleton className="h-12 w-32" />
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    )
+  try {
+    if (isUuid) {
+      const res = await fetch(
+        `https://api.mangadex.org/manga/${cleanId}?includes[]=cover_art&includes[]=author`,
+        { next: { revalidate: 600 } }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        const rawManga = data.data
+        const title =
+          rawManga.attributes?.title?.en ||
+          Object.values(rawManga.attributes?.title || {})[0] ||
+          'Manga'
+        const description = rawManga.attributes?.description?.en || ''
+        const coverFile = rawManga.relationships?.find((r: any) => r.type === 'cover_art')?.attributes?.fileName
+        const coverUrl = coverFile ? `https://uploads.mangadex.org/covers/${cleanId}/${coverFile}` : ''
+        return { id: cleanId, title, description, coverUrl }
+      }
+    }
+
+    const res = await fetch(`https://consumet-api-rouge.vercel.app/manga/mangapill/info?id=${cleanId}`, {
+      next: { revalidate: 600 },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      const title = data.title || 'Manga'
+      const description = data.description || ''
+      const coverUrl = data.image || `https://cdn.readdetectiveconan.com/file/mangapill/i/${cleanId}.jpeg`
+      return { id: cleanId, title, description, coverUrl }
+    }
+  } catch {
+    // Fallback if fetch fails
   }
 
-  if (!manga) {
-    notFound()
+  return {
+    id: cleanId,
+    title: 'Manga Detail',
+    description: 'Read your favorite manga online for free on MangaLegends.',
+    coverUrl: '',
   }
+}
 
-  const relatedManga = trending?.filter((m: { id: string }) => m.id !== id).slice(0, 5) || []
-  
-  // Find Chapter 1 (or the first chapter numerically) for Start Reading button
-  const firstChapter = chapters?.find((ch: any) => ch.attributes?.chapter === '1' || ch.chapter === '1')
-                     || chapters?.[chapters.length - 1]
-                     || chapters?.[0]
-  const firstChapterId = firstChapter?.id
+export async function generateMetadata({ params }: MangaPageProps): Promise<Metadata> {
+  const cleanId = params.id.split('/')[0]
+  const manga = await getMangaInfo(params.id)
+  const canonicalUrl = `${SITE_CONFIG.url}/manga/${cleanId}`
+  const pageTitle = `${manga.title} Manga`
+  const metaDescription =
+    manga.description && manga.description.length > 10
+      ? manga.description.slice(0, 160).trim()
+      : `Read ${manga.title} manga online for free on MangaLegends. High quality chapter updates.`
+
+  return {
+    title: pageTitle,
+    description: metaDescription,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      type: 'website',
+      url: canonicalUrl,
+      title: `${pageTitle} | ${SITE_CONFIG.name}`,
+      description: metaDescription,
+      images: manga.coverUrl
+        ? [
+            {
+              url: manga.coverUrl,
+              alt: manga.title,
+            },
+          ]
+        : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${pageTitle} | ${SITE_CONFIG.name}`,
+      description: metaDescription,
+      images: manga.coverUrl ? [manga.coverUrl] : undefined,
+    },
+  }
+}
+
+export default async function MangaPage({ params }: MangaPageProps) {
+  const cleanId = params.id.split('/')[0]
+  const manga = await getMangaInfo(params.id)
+  const canonicalUrl = `${SITE_CONFIG.url}/manga/${cleanId}`
+
+  const breadcrumbJsonLd = generateBreadcrumbJsonLd([
+    { name: 'Home', url: '/' },
+    { name: manga.title, url: `/manga/${cleanId}` },
+  ])
+
+  const webPageJsonLd = generateWebPageJsonLd({
+    name: `${manga.title} Manga`,
+    description: manga.description || `Read ${manga.title} online`,
+    url: canonicalUrl,
+    image: manga.coverUrl,
+  })
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <MangaHeader manga={manga} firstChapterId={firstChapterId} />
-
-        <AdsterraNativeBanner />
-
-        <div className="mt-12 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
-
-          <div>
-            <h2 className="text-xl font-bold mb-4">Chapters</h2>
-            {chaptersLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="h-16 bg-surface rounded-lg animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <ChapterList chapters={chapters || []} mangaId={id} />
-            )}
-          </div>
-
-          <div>
-            <h2 className="text-xl font-bold mb-4">You Might Also Like</h2>
-            <div className="space-y-3">
-              {relatedManga.map((m: Manga) => (
-                <MangaCard key={m.id} manga={m} className="flex-shrink-0" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
+      />
+      <MangaDetailContent id={params.id} />
+    </>
   )
 }

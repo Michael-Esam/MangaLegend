@@ -1,105 +1,98 @@
-'use client'
-
-import { useState, useEffect, useMemo } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { ImageViewer } from '@/components/reader/image-viewer'
-import { ReaderControls } from '@/components/reader/reader-controls'
-import { useChapterPages, useMangaChapters, useReadingProgress } from '@/lib/hooks/useManga'
-import { Skeleton } from '@/components/ui/skeleton'
-import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner'
+import type { Metadata } from 'next'
+import { ChapterReaderContent } from '@/components/reader/chapter-reader-content'
+import { SITE_CONFIG, generateBreadcrumbJsonLd } from '@/lib/seo'
 
 interface ChapterPageProps {
   params: { chapterId: string }
+  searchParams?: { mangaId?: string }
 }
 
-export default function ChapterPage({ params }: ChapterPageProps) {
-  const { chapterId } = params
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const mangaId = searchParams.get('mangaId') || ''
-  const [readingMode, setReadingMode] = useState<'long-strip' | 'single'>('long-strip')
-  const [currentPage, setCurrentPage] = useState(0)
+async function getMangaTitle(mangaId: string): Promise<string> {
+  const cleanId = mangaId.split('/')[0]
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId)
 
-  const { data: pages, isLoading } = useChapterPages(chapterId, mangaId || undefined)
-  const { data: chapters } = useMangaChapters(mangaId)
-
-  const { saveProgress } = useReadingProgress(mangaId)
-
-  useEffect(() => {
-    if (currentPage > 0 && chapterId) {
-      saveProgress(chapterId, currentPage)
+  try {
+    if (isUuid) {
+      const res = await fetch(`https://api.mangadex.org/manga/${cleanId}`, {
+        next: { revalidate: 600 },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const rawManga = data.data
+        return (
+          rawManga?.attributes?.title?.en ||
+          Object.values(rawManga?.attributes?.title || {})[0] ||
+          ''
+        )
+      }
     }
-  }, [currentPage, chapterId, saveProgress])
 
-  const currentIndex = useMemo(() => {
-    if (!chapters) return -1
-    const cleanCurrentId = chapterId.split('/')[0]
-    return chapters.findIndex((c: any) => c.id.split('/')[0] === cleanCurrentId)
-  }, [chapters, chapterId])
-
-
-  // Chapters are sorted newest first (descending order, e.g. ch 28, ch 27, ch 26...)
-  const nextChapter = currentIndex > 0 && chapters ? chapters[currentIndex - 1] : null
-  const prevChapter = currentIndex >= 0 && chapters && currentIndex < chapters.length - 1 ? chapters[currentIndex + 1] : null
-
-  const handlePrevChapter = () => {
-    if (prevChapter) {
-      const cleanChId = prevChapter.id.split('/')[0]
-      router.push(`/read/${cleanChId}?mangaId=${mangaId}`)
+    const res = await fetch(`https://consumet-api-rouge.vercel.app/manga/mangapill/info?id=${cleanId}`, {
+      next: { revalidate: 600 },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      return data.title || ''
     }
+  } catch {
+    // Fallback if fetch fails
   }
 
-  const handleNextChapter = () => {
-    if (nextChapter) {
-      const cleanChId = nextChapter.id.split('/')[0]
-      router.push(`/read/${cleanChId}?mangaId=${mangaId}`)
-    }
+  return ''
+}
+
+export async function generateMetadata({ params, searchParams }: ChapterPageProps): Promise<Metadata> {
+  const cleanChapterId = params.chapterId.split('/')[0]
+  const canonicalUrl = `${SITE_CONFIG.url}/read/${cleanChapterId}`
+  
+  let mangaTitle = ''
+  if (searchParams?.mangaId) {
+    mangaTitle = await getMangaTitle(searchParams.mangaId)
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Skeleton className="w-64 h-8 mb-4" />
-          <Skeleton className="w-32 h-4" />
-        </div>
-      </div>
-    )
-  }
+  const pageTitle = mangaTitle 
+    ? `Read ${mangaTitle} Chapter ${cleanChapterId} Online Free`
+    : `Read Chapter ${cleanChapterId} Online Free`
 
-  if (!pages || !pages.chapter?.data?.length) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-text-muted mb-2">Chapter not found or no pages available</p>
-          <button onClick={() => router.back()} className="text-accent hover:underline">
-            Go back
-          </button>
-        </div>
-      </div>
-    )
+  const metaDescription = mangaTitle
+    ? `Read ${mangaTitle} Chapter ${cleanChapterId} online in high quality for free on MangaLegends. Experience fast loading and custom reading views.`
+    : `Read chapter ${cleanChapterId} online in high quality for free on MangaLegends. Experience fast loading and custom reading views.`
+
+  return {
+    title: pageTitle,
+    description: metaDescription,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      type: 'website',
+      url: canonicalUrl,
+      title: `${pageTitle} | ${SITE_CONFIG.name}`,
+      description: metaDescription,
+    },
+    twitter: {
+      card: 'summary',
+      title: `${pageTitle} | ${SITE_CONFIG.name}`,
+      description: metaDescription,
+    },
   }
+}
+
+export default async function ChapterPage({ params, searchParams }: ChapterPageProps) {
+  const cleanChapterId = params.chapterId.split('/')[0]
+
+  const breadcrumbJsonLd = generateBreadcrumbJsonLd([
+    { name: 'Home', url: '/' },
+    { name: `Chapter ${cleanChapterId}`, url: `/read/${cleanChapterId}` },
+  ])
 
   return (
-    <div className="min-h-screen bg-background">
-      <ReaderControls
-        onPrevChapter={handlePrevChapter}
-        onNextChapter={handleNextChapter}
-        hasPrevChapter={!!prevChapter}
-        hasNextChapter={!!nextChapter}
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-
-      <div className={readingMode === 'single' ? 'pt-16' : ''}>
-        <ImageViewer
-          pages={pages}
-          initialPage={currentPage}
-          onPageChange={setCurrentPage}
-          readingMode={readingMode}
-        />
-      </div>
-
-      <AdsterraNativeBanner />
-    </div>
+      <ChapterReaderContent chapterId={params.chapterId} />
+    </>
   )
 }
-
