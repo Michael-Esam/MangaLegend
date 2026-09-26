@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/search', label: 'Browse' },
+  { href: '/genre/action', label: 'Genres' },
   { href: '/library', label: 'Library' },
 ]
 

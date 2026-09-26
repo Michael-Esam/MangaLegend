@@ -26,17 +26,26 @@ export async function fetchManga(params: {
   const searchParams = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
     if (Array.isArray(value)) {
-      value.forEach(v => searchParams.append(key, v))
+      const paramKey = ['includedTags', 'excludedTags', 'status', 'originalLanguage', 'contentRating', 'tags'].includes(key)
+        ? `${key}[]`
+        : key
+      value.forEach(v => searchParams.append(paramKey, v))
     } else if (value !== undefined) {
       searchParams.append(key, String(value))
     }
   })
 
+  if (!searchParams.has('includes[]')) {
+    searchParams.append('includes[]', 'cover_art')
+    searchParams.append('includes[]', 'author')
+    searchParams.append('includes[]', 'artist')
+  }
+
   const res = await fetch(`${BASE_URL}/manga?${searchParams}`, {
     next: { revalidate: 300 },
   })
   const data = await res.json()
-  return data.data
+  return data.data || []
 }
 
 export async function fetchTrendingManga(limit = 10): Promise<Manga[]> {
@@ -45,7 +54,7 @@ export async function fetchTrendingManga(limit = 10): Promise<Manga[]> {
     { next: { revalidate: 300 } }
   )
   const data = await res.json()
-  return data.data
+  return data.data || []
 }
 
 export async function fetchMangaById(id: string): Promise<Manga> {
@@ -77,7 +86,7 @@ export async function fetchMangaChapters(mangaId: string, options?: {
     next: { revalidate: 300 },
   })
   const data = await res.json()
-  return data.data
+  return data.data || []
 }
 
 export async function fetchChapterPages(chapterId: string): Promise<ChapterPages> {
@@ -89,9 +98,9 @@ export async function fetchChapterPages(chapterId: string): Promise<ChapterPages
 }
 
 export async function fetchTags(): Promise<Tag[]> {
-  const res = await fetch(`${BASE_URL}/tag`, { next: { revalidate: 3600 } })
+  const res = await fetch(`${BASE_URL}/manga/tag`, { next: { revalidate: 3600 } })
   const data = await res.json()
-  return data.data
+  return data.data || []
 }
 
 export async function fetchSearchSuggestions(query: string): Promise<Manga[]> {

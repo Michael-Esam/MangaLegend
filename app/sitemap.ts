@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { SITE_CONFIG } from '@/lib/seo'
+import { getSupportedGenres } from '@/lib/genres'
 
 const BASE_URL = SITE_CONFIG.url
 
@@ -56,6 +57,7 @@ async function getMangaIds(): Promise<string[]> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const mangaIds = await getMangaIds()
+  const genres = await getSupportedGenres()
   const currentDate = new Date().toISOString()
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -73,6 +75,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ]
 
+  const genreRoutes: MetadataRoute.Sitemap = genres.map((g) => ({
+    url: `${BASE_URL}/genre/${g.slug}`,
+    lastModified: currentDate,
+    changeFrequency: 'weekly',
+    priority: 0.8,
+  }))
+
   const mangaRoutes: MetadataRoute.Sitemap = mangaIds.map((id) => ({
     url: `${BASE_URL}/manga/${id}`,
     lastModified: currentDate,
@@ -80,5 +89,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   }))
 
-  return [...staticRoutes, ...mangaRoutes]
+  return [...staticRoutes, ...genreRoutes, ...mangaRoutes]
 }
