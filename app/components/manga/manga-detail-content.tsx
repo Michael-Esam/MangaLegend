@@ -7,17 +7,19 @@ import { ChapterList } from '@/components/manga/chapter-list'
 import { MangaCard } from '@/components/manga/manga-card'
 import { useManga, useMangaChapters, useTrendingManga } from '@/lib/hooks/useManga'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { Manga, AuthorAttributes } from '@/types/manga'
+import type { Manga, Chapter, AuthorAttributes } from '@/types/manga'
 import { getTitle, getDescription } from '@/lib/utils'
 import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner'
 
 interface MangaDetailContentProps {
   id: string
+  initialManga?: Manga
+  initialChapters?: Chapter[]
 }
 
-export function MangaDetailContent({ id }: MangaDetailContentProps) {
-  const { data: manga, isLoading: mangaLoading } = useManga(id)
-  const { data: chapters, isLoading: chaptersLoading } = useMangaChapters(id)
+export function MangaDetailContent({ id, initialManga, initialChapters }: MangaDetailContentProps) {
+  const { data: manga, isLoading: mangaLoading } = useManga(id, initialManga)
+  const { data: chapters, isLoading: chaptersLoading } = useMangaChapters(id, initialChapters)
   const { data: trending } = useTrendingManga(6)
 
   if (mangaLoading) {

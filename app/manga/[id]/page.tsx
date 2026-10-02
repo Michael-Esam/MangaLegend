@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { MangaDetailContent } from '@/components/manga/manga-detail-content'
 import { SITE_CONFIG, generateBreadcrumbJsonLd, generateWebPageJsonLd } from '@/lib/seo'
+import type { Manga, Chapter } from '@/types/manga'
 
 interface MangaPageProps {
   params: { id: string }
@@ -12,13 +13,21 @@ async function getMangaInfo(rawId: string) {
 
   try {
     if (isUuid) {
-      const res = await fetch(
-        `https://api.mangadex.org/manga/${cleanId}?includes[]=cover_art&includes[]=author`,
-        { next: { revalidate: 600 } }
-      )
-      if (res.ok) {
-        const data = await res.json()
-        const rawManga = data.data
+      const [mangaRes, feedRes] = await Promise.all([
+        fetch(`https://api.mangadex.org/manga/${cleanId}?includes[]=cover_art&includes[]=author&includes[]=artist`, {
+          next: { revalidate: 600 },
+        }),
+        fetch(`https://api.mangadex.org/manga/${cleanId}/feed?limit=96&translatedLanguage[]=en&order[chapter]=desc`, {
+          next: { revalidate: 300 },
+        }),
+      ])
+
+      if (mangaRes.ok) {
+        const mangaData = await mangaRes.json()
+        const feedData = feedRes.ok ? await feedRes.json() : { data: [] }
+        const rawManga = mangaData.data
+        const rawFeed = feedData.data || []
+
         const title =
           rawManga.attributes?.title?.en ||
           Object.values(rawManga.attributes?.title || {})[0] ||
@@ -26,19 +35,117 @@ async function getMangaInfo(rawId: string) {
         const description = rawManga.attributes?.description?.en || ''
         const coverFile = rawManga.relationships?.find((r: any) => r.type === 'cover_art')?.attributes?.fileName
         const coverUrl = coverFile ? `https://uploads.mangadex.org/covers/${cleanId}/${coverFile}` : ''
-        return { id: cleanId, title, description, coverUrl }
+
+        const chapters: Chapter[] = rawFeed.map((ch: any) => ({
+          id: ch.id.split('/')[0],
+          type: 'chapter' as const,
+          attributes: {
+            volume: ch.attributes?.volume || null,
+            chapter: ch.attributes?.chapter || null,
+            title: ch.attributes?.title ? `Ch. ${ch.attributes.chapter || ''} - ${ch.attributes.title}` : `Chapter ${ch.attributes?.chapter || ''}`,
+            translatedLanguage: 'en',
+            originalLanguage: '',
+            external: null,
+            publishAt: '',
+            readableAt: '',
+            createdAt: '',
+            updatedAt: '',
+            pages: 0,
+            version: 1,
+          },
+          relationships: [{ id: cleanId, type: 'manga' as const }],
+        }))
+
+        const initialManga: Manga = {
+          id: cleanId,
+          type: 'manga' as const,
+          attributes: {
+            ...rawManga.attributes,
+            title: { en: title },
+            description: { en: description },
+          },
+          relationships: rawManga.relationships || [
+            {
+              id: cleanId,
+              type: 'cover_art' as const,
+              attributes: { fileName: coverUrl } as any,
+            },
+          ],
+        }
+
+        return { id: cleanId, title, description, coverUrl, initialManga, chapters }
       }
     }
 
     const res = await fetch(`https://consumet-api-rouge.vercel.app/manga/mangapill/info?id=${cleanId}`, {
       next: { revalidate: 600 },
     })
+
     if (res.ok) {
       const data = await res.json()
       const title = data.title || 'Manga'
       const description = data.description || ''
       const coverUrl = data.image || `https://cdn.readdetectiveconan.com/file/mangapill/i/${cleanId}.jpeg`
-      return { id: cleanId, title, description, coverUrl }
+
+      const chapters: Chapter[] = (data.chapters || []).map((ch: any) => ({
+        id: String(ch.id).split('/')[0],
+        type: 'chapter' as const,
+        attributes: {
+          volume: null,
+          chapter: ch.chapter || null,
+          title: ch.title,
+          translatedLanguage: 'en',
+          originalLanguage: '',
+          external: null,
+          publishAt: '',
+          readableAt: '',
+          createdAt: '',
+          updatedAt: '',
+          pages: 0,
+          version: 1,
+        },
+        relationships: [{ id: cleanId, type: 'manga' as const }],
+      }))
+
+      const initialManga: Manga = {
+        id: cleanId,
+        type: 'manga' as const,
+        attributes: {
+          title: { en: title },
+          altTitles: (data.altTitles || []).map((t: string) => ({ en: t })),
+          description: { en: description },
+          status: (data.status?.toLowerCase() || 'ongoing') as any,
+          year: data.releaseDate ? parseInt(data.releaseDate) || null : null,
+          contentRating: 'safe',
+          tags: (data.genres || []).filter(Boolean).map((g: string) => ({
+            id: g.toLowerCase().replace(/\s+/g, '-'),
+            type: 'tag' as const,
+            attributes: {
+              name: { en: g },
+              description: {},
+              group: 'genre' as const,
+              version: 1,
+            },
+          })),
+          originalLanguage: '',
+          lastChapter: data.chapters?.[0]?.title || null,
+          lastVolume: null,
+          chapterNumbersReset: false,
+          linkedChapters: [],
+          createdAt: '',
+          updatedAt: '',
+          state: 'published',
+        },
+        relationships: [
+          {
+            id: cleanId,
+            type: 'cover_art' as const,
+            attributes: { fileName: coverUrl } as any,
+          },
+        ],
+      }
+
+      return { id: cleanId, title, description, coverUrl, initialManga, chapters }
     }
   } catch {
     // Fallback if fetch fails
@@ -49,6 +156,8 @@ async function getMangaInfo(rawId: string) {
     title: 'Manga Detail',
     description: 'Read your favorite manga online for free on MangaLegends.',
     coverUrl: '',
+    initialManga: undefined,
+    chapters: [],
   }
 }
 
@@ -118,7 +227,12 @@ export default async function MangaPage({ params }: MangaPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
       />
-      <MangaDetailContent id={params.id} />
+      <MangaDetailContent
+        id={params.id}
+        initialManga={manga.initialManga}
+        initialChapters={manga.chapters}
+      />
     </>
   )
 }
+

@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import type { Manga } from '@/types/manga'
+import type { Manga, Chapter } from '@/types/manga'
 
 interface ConsumetManga {
   id: string
@@ -122,7 +122,7 @@ export function useMangaSearch(params: {
   })
 }
 
-export function useManga(id: string) {
+export function useManga(id: string, initialData?: Manga) {
   return useQuery({
     queryKey: ['manga', id],
     queryFn: async () => {
@@ -132,11 +132,12 @@ export function useManga(id: string) {
       return consumetToManga(data)
     },
     enabled: !!id,
+    initialData,
     staleTime: 10 * 60 * 1000,
   })
 }
 
-export function useMangaChapters(mangaId: string) {
+export function useMangaChapters(mangaId: string, initialData?: Chapter[]) {
   return useQuery({
     queryKey: ['manga-chapters', mangaId],
     queryFn: async () => {
@@ -169,6 +170,7 @@ export function useMangaChapters(mangaId: string) {
       }))
     },
     enabled: !!mangaId,
+    initialData,
     staleTime: 5 * 60 * 1000,
   })
 }
