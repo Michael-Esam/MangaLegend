@@ -55,9 +55,71 @@ async function getMangaIds(): Promise<string[]> {
   return Array.from(mangaIdSet)
 }
 
+async function getChapterRoutes(mangaIds: string[]): Promise<MetadataRoute.Sitemap> {
+  const chapterIdSet = new Set<string>()
+
+  // Fetch chapters for manga IDs in small batches concurrently
+  const BATCH_SIZE = 10
+  for (let i = 0; i < mangaIds.length; i += BATCH_SIZE) {
+    const batch = mangaIds.slice(i, i + BATCH_SIZE)
+    await Promise.all(
+      batch.map(async (mangaId) => {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mangaId)
+
+        try {
+          if (isUuid) {
+            const res = await fetch(
+              `https://api.mangadex.org/manga/${mangaId}/feed?limit=100&translatedLanguage[]=en&order[chapter]=desc`,
+              { next: { revalidate: 3600 } }
+            )
+            if (res.ok) {
+              const data = await res.json()
+              if (Array.isArray(data?.data)) {
+                for (const ch of data.data) {
+                  if (ch?.id) {
+                    const cleanChapterId = String(ch.id).split('/')[0]
+                    if (cleanChapterId) chapterIdSet.add(cleanChapterId)
+                  }
+                }
+              }
+            }
+          } else {
+            const res = await fetch(
+              `https://consumet-api-rouge.vercel.app/manga/mangapill/info?id=${mangaId}`,
+              { next: { revalidate: 3600 } }
+            )
+            if (res.ok) {
+              const data = await res.json()
+              if (Array.isArray(data?.chapters)) {
+                for (const ch of data.chapters) {
+                  if (ch?.id) {
+                    const cleanChapterId = String(ch.id).split('/')[0]
+                    if (cleanChapterId) chapterIdSet.add(cleanChapterId)
+                  }
+                }
+              }
+            }
+          }
+        } catch {
+          // Ignore error for individual manga fetch
+        }
+      })
+    )
+  }
+
+  const currentDate = new Date().toISOString()
+  return Array.from(chapterIdSet).map((chapterId) => ({
+    url: `${BASE_URL}/read/${chapterId}`,
+    lastModified: currentDate,
+    changeFrequency: 'weekly',
+    priority: 0.7,
+  }))
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const mangaIds = await getMangaIds()
   const genres = await getSupportedGenres()
+  const chapterRoutes = await getChapterRoutes(mangaIds)
   const currentDate = new Date().toISOString()
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -89,5 +151,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   }))
 
-  return [...staticRoutes, ...genreRoutes, ...mangaRoutes]
+  return [...staticRoutes, ...genreRoutes, ...mangaRoutes, ...chapterRoutes]
 }
