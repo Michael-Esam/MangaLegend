@@ -77,35 +77,86 @@ async function getMangaInfo(rawId: string) {
       }
     }
 
-    const res = await fetch(`https://consumet-api-rouge.vercel.app/manga/mangapill/info?id=${cleanId}`, {
+    const res = await fetch(`https://mangapill-api.maichelessam2001.workers.dev/manga/info?id=${encodeURIComponent(cleanId)}`, {
       next: { revalidate: 600 },
     })
 
     if (res.ok) {
       const data = await res.json()
-      const title = data.title || 'Manga'
-      const description = data.description || ''
-      const coverUrl = data.image || `https://cdn.readdetectiveconan.com/file/mangapill/i/${cleanId}.jpeg`
+      const title = data.pageTitle
+        ? data.pageTitle.replace(/\s*Manga\s*-\s*Mangapill/i, '').replace(/\s*-\s*Mangapill/i, '').trim()
+        : 'Manga'
+      const description = data.description || `Read ${title} manga online for free on MangaLegends.`
+      const coverUrl = `https://cdn.readdetectiveconan.com/file/mangapill/i/${cleanId}.jpeg`
 
-      const chapters: Chapter[] = (data.chapters || []).map((ch: any) => ({
-        id: String(ch.id).split('/')[0],
-        type: 'chapter' as const,
-        attributes: {
-          volume: null,
-          chapter: ch.chapter || null,
-          title: ch.title,
-          translatedLanguage: 'en',
-          originalLanguage: '',
-          external: null,
-          publishAt: '',
-          readableAt: '',
-          createdAt: '',
-          updatedAt: '',
-          pages: 0,
-          version: 1,
-        },
-        relationships: [{ id: cleanId, type: 'manga' as const }],
-      }))
+      let chapters: Chapter[] = (data.chapters || []).map((ch: any) => {
+        const chapterMatch = (ch.title || '').match(/Chapter\s+([\d.]+)/i)
+        const chapterNum = chapterMatch ? chapterMatch[1] : (ch.chapter || null)
+        return {
+          id: String(ch.id).split('/')[0],
+          type: 'chapter' as const,
+          attributes: {
+            volume: null,
+            chapter: chapterNum,
+            title: ch.title,
+            translatedLanguage: 'en',
+            originalLanguage: '',
+            external: null,
+            publishAt: '',
+            readableAt: '',
+            createdAt: '',
+            updatedAt: '',
+            pages: 0,
+            version: 1,
+          },
+          relationships: [{ id: cleanId, type: 'manga' as const }],
+        }
+      })
+
+      // If Worker returned truncated list, fetch all available chapters for complete SSR
+      if (data.chaptersFound > chapters.length) {
+        try {
+          const mpRes = await fetch(`https://mangapill.com/manga/${cleanId}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            next: { revalidate: 600 },
+          })
+          if (mpRes.ok) {
+            const html = await mpRes.text()
+            const regex = /<a[^>]+href=["']\/chapters\/([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
+            const fullChapters: Chapter[] = []
+            let m
+            while ((m = regex.exec(html)) !== null) {
+              const rawId = m[1].split('/')[0]
+              const text = m[2].replace(/<[^>]+>/g, '').trim()
+              const chapterMatch = text.match(/Chapter\s+([\d.]+)/i)
+              fullChapters.push({
+                id: rawId,
+                type: 'chapter' as const,
+                attributes: {
+                  volume: null,
+                  chapter: chapterMatch ? chapterMatch[1] : null,
+                  title: text,
+                  translatedLanguage: 'en',
+                  originalLanguage: '',
+                  external: null,
+                  publishAt: '',
+                  readableAt: '',
+                  createdAt: '',
+                  updatedAt: '',
+                  pages: 0,
+                  version: 1,
+                },
+                relationships: [{ id: cleanId, type: 'manga' as const }],
+              })
+            }
+            if (fullChapters.length > chapters.length) {
+              chapters = fullChapters
+            }
+          }
+        } catch {
+          // Gracefully keep Worker chapters
+        }
+      }
 
       const initialManga: Manga = {
         id: cleanId,
@@ -128,7 +179,7 @@ async function getMangaInfo(rawId: string) {
             },
           })),
           originalLanguage: '',
-          lastChapter: data.chapters?.[0]?.title || null,
+          lastChapter: chapters[0]?.attributes?.title || null,
           lastVolume: null,
           chapterNumbersReset: false,
           linkedChapters: [],

@@ -11,6 +11,27 @@ function getFallbackResponse() {
   })
 }
 
+async function fetchImage(targetUrl: string, referer: string): Promise<Response | null> {
+  try {
+    let res = await fetch(targetUrl, {
+      headers: {
+        'Referer': referer,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    })
+    if (res.status === 403) {
+      res = await fetch(targetUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      })
+    }
+    return res
+  } catch {
+    return null
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const url = searchParams.get('url')
@@ -30,22 +51,27 @@ export async function GET(request: Request) {
       referer = 'https://mangadex.org/'
     }
 
-    let res = await fetch(url, {
-      headers: {
-        'Referer': referer,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    })
+    let res = await fetchImage(url, referer)
 
-    if (res.status === 403) {
-      res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-      })
+    // If 404 or fetch failure on MangaPill cover URL, automatically attempt other extensions (.jpg, .jpeg, .png, .webp)
+    if ((!res || !res.ok) && url.includes('/file/mangapill/i/')) {
+      const match = url.match(/\/file\/mangapill\/i\/(\d+)/)
+      if (match) {
+        const id = match[1]
+        const exts = ['.jpg', '.jpeg', '.png', '.webp']
+        for (const ext of exts) {
+          const altUrl = `https://cdn.readdetectiveconan.com/file/mangapill/i/${id}${ext}`
+          if (altUrl === url) continue
+          const altRes = await fetchImage(altUrl, referer)
+          if (altRes && altRes.ok) {
+            res = altRes
+            break
+          }
+        }
+      }
     }
 
-    if (!res.ok) {
+    if (!res || !res.ok) {
       return getFallbackResponse()
     }
 
@@ -55,12 +81,11 @@ export async function GET(request: Request) {
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=3600',
+        'Cache-Control': 'public, max-age=86400',
         'Access-Control-Allow-Origin': '*',
       },
     })
-  } catch (error) {
+  } catch {
     return getFallbackResponse()
   }
 }
-

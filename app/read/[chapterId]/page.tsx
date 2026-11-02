@@ -33,12 +33,15 @@ async function fetchMangaTitleById(mangaId: string): Promise<string> {
       }
     }
 
-    const res = await fetch(`https://consumet-api-rouge.vercel.app/manga/mangapill/info?id=${cleanId}`, {
+    const res = await fetch(`https://mangapill-api.maichelessam2001.workers.dev/manga/info?id=${encodeURIComponent(cleanId)}`, {
       next: { revalidate: 600 },
     })
     if (res.ok) {
       const data = await res.json()
-      return data.title || ''
+      const title = data.pageTitle
+        ? data.pageTitle.replace(/\s*Manga\s*-\s*Mangapill/i, '').replace(/\s*-\s*Mangapill/i, '').trim()
+        : (data.title || '')
+      return title
     }
   } catch {
     // Fallback if fetch fails

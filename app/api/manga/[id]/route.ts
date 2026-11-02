@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-const CONSUMET_BASE_URL = 'https://consumet-api-rouge.vercel.app'
+const MANGAPILL_WORKER_URL = 'https://mangapill-api.maichelessam2001.workers.dev'
 const MANGADEX_BASE_URL = 'https://api.mangadex.org'
 
 export async function GET(
@@ -12,7 +12,7 @@ export async function GET(
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
 
     if (isUuid) {
-      // MangaDex UUID fetch
+      // MangaDex UUID fetch (only for explicit MangaDex UUIDs)
       const [mangaRes, feedRes] = await Promise.all([
         fetch(`${MANGADEX_BASE_URL}/manga/${rawId}?includes[]=cover_art&includes[]=author&includes[]=artist`),
         fetch(`${MANGADEX_BASE_URL}/manga/${rawId}/feed?limit=96&translatedLanguage[]=en&order[chapter]=desc`)
@@ -49,37 +49,73 @@ export async function GET(
       }
     }
 
-    // Extract numeric ID for Consumet (e.g. "2/one-piece" -> "2")
-    const id = rawId.split('/')[0]
+    // Extract numeric ID for MangaPill (e.g. "2/one-piece" -> "2", "/manga/2/one-piece" -> "2")
+    const cleanPath = rawId.replace(/^\/?manga\//, '')
+    const numericId = cleanPath.split('/')[0]
 
-    // Fetch full manga details AND ALL chapters from Consumet (Mangapill)
-    const res = await fetch(`${CONSUMET_BASE_URL}/manga/mangapill/info?id=${id}`)
+    // Fetch full manga details AND ALL chapters from Cloudflare Worker
+    const res = await fetch(`${MANGAPILL_WORKER_URL}/manga/info?id=${encodeURIComponent(numericId)}`)
     if (res.ok) {
       const data = await res.json()
       
-      // Fix: Consumet info endpoint omits 'image' property. Resolve real cover image URL!
-      if (!data.image) {
-        if (data.title) {
-          try {
-            const searchRes = await fetch(`${CONSUMET_BASE_URL}/manga/mangapill/${encodeURIComponent(data.title)}`)
-            if (searchRes.ok) {
-              const searchData = await searchRes.json()
-              const list = Array.isArray(searchData) ? searchData : (searchData.results || [])
-              const match = list.find((m: any) => m.id === data.id || m.id?.startsWith(id + '/')) || list[0]
-              if (match?.image) {
-                data.image = match.image
-              }
-            }
-          } catch {
-            // Ignore search error
-          }
+      const cleanTitle = data.pageTitle
+        ? data.pageTitle.replace(/\s*Manga\s*-\s*Mangapill/i, '').replace(/\s*-\s*Mangapill/i, '').trim()
+        : 'Manga'
+
+      let chapters = (data.chapters || []).map((ch: any) => {
+        const chapterMatch = (ch.title || '').match(/Chapter\s+([\d.]+)/i)
+        const chapterNum = chapterMatch ? chapterMatch[1] : (ch.chapter || null)
+        return {
+          id: ch.id,
+          chapter: chapterNum,
+          title: ch.title,
+          mangaId: numericId,
         }
-        if (!data.image) {
-          data.image = `https://cdn.readdetectiveconan.com/file/mangapill/i/${id}.jpeg`
+      })
+
+      // If Worker returned truncated list (e.g. 30 out of 1212 chapters), retrieve all available chapters
+      if (data.chaptersFound > chapters.length) {
+        try {
+          const mpRes = await fetch(`https://mangapill.com/manga/${numericId}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            redirect: 'follow',
+          })
+          if (mpRes.ok) {
+            const html = await mpRes.text()
+            const regex = /<a[^>]+href=["']\/chapters\/([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
+            const fullChapters = []
+            let m
+            while ((m = regex.exec(html)) !== null) {
+              const rawId = m[1]
+              const text = m[2].replace(/<[^>]+>/g, '').trim()
+              const chapterMatch = text.match(/Chapter\s+([\d.]+)/i)
+              fullChapters.push({
+                id: rawId,
+                chapter: chapterMatch ? chapterMatch[1] : null,
+                title: text,
+                mangaId: numericId,
+              })
+            }
+            if (fullChapters.length > chapters.length) {
+              chapters = fullChapters
+            }
+          }
+        } catch {
+          // Gracefully fallback to Worker chapters
         }
       }
 
-      return NextResponse.json(data)
+      const coverUrl = `https://cdn.readdetectiveconan.com/file/mangapill/i/${numericId}.jpeg`
+
+      return NextResponse.json({
+        id: numericId,
+        title: cleanTitle,
+        image: coverUrl,
+        status: 'ongoing',
+        description: '',
+        genres: [],
+        chapters,
+      })
     }
 
     return NextResponse.json({ error: 'Manga not found' }, { status: 404 })

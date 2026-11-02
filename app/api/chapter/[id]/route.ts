@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-const CONSUMET_BASE_URL = 'https://consumet-api-rouge.vercel.app'
+const MANGAPILL_WORKER_URL = 'https://mangapill-api.maichelessam2001.workers.dev'
 const MANGADEX_BASE_URL = 'https://api.mangadex.org'
 
 export async function GET(
@@ -8,9 +8,6 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { searchParams } = new URL(request.url)
-    const mangaId = searchParams.get('mangaId') || ''
-
     const chapterId = params.id.split('/')[0]
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chapterId)
 
@@ -30,17 +27,18 @@ export async function GET(
       }
     }
 
-    // Fallback to Consumet API for numeric chapter IDs
-    const mangaIdParam = mangaId.split('/')[0]
+    // Fetch chapter pages from Cloudflare Worker (MangaPill)
     const res = await fetch(
-      `${CONSUMET_BASE_URL}/manga/mangapill/read?chapterId=${chapterId}&mangaId=${mangaIdParam}`
+      `${MANGAPILL_WORKER_URL}/manga/read?chapterId=${encodeURIComponent(chapterId)}`
     )
 
     if (res.ok) {
       const data = await res.json()
-      const pages = Array.isArray(data)
-        ? data.map((p: { img: string }) => p.img)
-        : []
+      const rawImages = Array.isArray(data.images) ? data.images : (Array.isArray(data) ? data : [])
+      const pages: string[] = rawImages.map((p: any) => {
+        if (typeof p === 'string') return p
+        return p?.url || p?.img || ''
+      }).filter(Boolean)
 
       return NextResponse.json(pages)
     }
