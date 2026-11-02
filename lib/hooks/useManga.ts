@@ -42,12 +42,12 @@ function consumetToManga(consumet: any): Manga {
     type: 'manga',
     attributes: {
       title: { en: consumet.title },
-      altTitles: (consumet.altTitles || []).map(t => ({ en: t })),
+      altTitles: (consumet.altTitles || []).map((t: string) => ({ en: t })),
       description: { en: consumet.description || '' },
       status: (consumet.status?.toLowerCase() || 'ongoing') as any,
       year,
       contentRating: 'safe',
-      tags: (consumet.genres || []).filter(g => g).map(g => ({
+      tags: (consumet.genres || []).filter((g: string) => g).map((g: string) => ({
         id: g.toLowerCase().replace(/\s+/g, '-'),
         type: 'tag' as const,
         attributes: {
